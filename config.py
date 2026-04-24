@@ -1,5 +1,5 @@
-BOT_TOKEN = "bot token "
-CHAT_ID = "chat id"
+BOT_TOKEN = "8656831731:AAGCz6YfMgOZ-nUqp9UlW1GaJK_8-tor54k"
+CHAT_ID = "6982069531"
 
 WEBSITES = [
     {"name": "FreeJobAlert", "url": "https://www.freejobalert.com"},

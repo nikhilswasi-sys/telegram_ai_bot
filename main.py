@@ -1,95 +1,96 @@
 import time
-from datetime import datetime, timedelta
+import re
 from config import WEBSITES
 from scraper import scrape
 from database import generate_id, is_sent, save
 from sender import send
-from utils import detect_category
+from utils import detect_category, get_image
 
-# 🔥 KEYWORDS FILTER
-KEYWORDS = {
-    "high": ["vacancy", "result", "admit card", "apply", "exam date", "official", "notification"],
-    "medium": ["update", "news", "announcement"]
-}
+# 🔥 KEYWORDS FILTER (simple & effective)
+KEYWORDS = ["vacancy", "result", "admit", "apply", "exam", "notification"]
 
 def is_important(title):
-    title_lower = title.lower()
+    if not title:
+        return False
+    return any(word in title.lower() for word in KEYWORDS)
 
-    for word in KEYWORDS["high"]:
-        if word in title_lower:
-            return True
+# 🔥 CLEAN TITLE (optional - ab use nahi ho raha id me)
+def clean_title(title):
+    if not title:
+        return ""
+    title = title.lower()
+    title = re.sub(r'[^a-z0-9 ]', '', title)
+    return title.strip()
 
-    for word in KEYWORDS["medium"]:
-        if word in title_lower:
-            return True
-
-    return False
-
-
-# 🔥 SIMPLE SUMMARY (FREE METHOD)
+# 🔥 SIMPLE SUMMARY
 def make_summary(title):
-    words = title.split()
-    short = " ".join(words[:12])  # first 10-12 words
-    return f"• {short}..."
+    if not title:
+        return ""
+    return " ".join(title.split()[:10]) + "..."
 
-
-def format_msg(title, link, site, category):
+# 🔥 FINAL MESSAGE FORMAT (channel branding)
+def format_msg(title, link, category):
     summary = make_summary(title)
 
     return f"""
-🔥 <b>Latest Important Update</b>
+🔥 <b>GenZ CyberHub</b>
 
 📰 <b>{title}</b>
 
-📌 Summary:
-{summary}
+📌 {summary}
 
 📂 Category: <b>{category}</b>
-🌐 Source: {site}
-🔗 <a href="{link}">Open Link</a>
+🔗 <a href="{link}">Read Full Update</a>
 
 ━━━━━━━━━━━━━━━
-🤖 Ultra Pro Bot
+🚀 Join: @GenZcyberhub
 """
-
 
 def run():
     print("Checking...")
 
     for site in WEBSITES:
         data = scrape(site["url"])
+        print(f"{site['name']} → {len(data)} items")
 
         for title, link in data[:20]:
 
-            # ❌ Skip if not important
+            # ✅ Safety check
+            if not title or not link:
+                continue
+
+            # ✅ important filter
             if not is_important(title):
                 continue
 
-            post_id = generate_id(title, link)
+            # ✅ FIXED (IMPORTANT 🔥)
+            post_id = generate_id(link)
 
-            # ❌ Skip duplicate
             if is_sent(post_id):
                 continue
 
             category = detect_category(title)
+            msg = format_msg(title, link, category)
 
-            msg = format_msg(title, link, site["name"], category)
+            # 🔥 AUTO THUMBNAIL
+            image = get_image(link)
 
             try:
-                send(msg)
+                send(msg, image)
                 save(post_id)
-                print("Sent:", title[:50])
+                print("✅ Sent:", title[:50])
 
             except Exception as e:
-                print("Send error:", e)
+                print("❌ Error:", e)
 
     print("Done\n")
 
 
+# 🔁 LOOP (auto run every 5 min)
 while True:
     try:
         run()
-        time.sleep(300)  # 5 min
+        time.sleep(300)
 
     except Exception as e:
         print("Crash prevented:", e)
